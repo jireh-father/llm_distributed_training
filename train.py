@@ -212,12 +212,12 @@ def main():
                 "zero_optimization": {
                     "stage": 3,
                     "offload_optimizer": {
-                        "device": "cpu",
-                        "pin_memory": True
+                        "device": "none",
+                        "pin_memory": False
                     },
                     "offload_param": {
-                        "device": "cpu",
-                        "pin_memory": True
+                        "device": "none",
+                        "pin_memory": False
                     },
                     "overlap_comm": True,
                     "contiguous_gradients": True,
@@ -225,7 +225,10 @@ def main():
                     "param_persistence_threshold": int(1e6),
                     "max_live_parameters": int(1e9),
                     "max_reuse_distance": int(1e9),
-                    "stage3_gather_16bit_weights_on_model_save": True
+                    "stage3_gather_16bit_weights_on_model_save": True,
+                    "stage3_max_live_parameters": int(1e9),
+                    "stage3_max_reuse_distance": int(1e9),
+                    "stage3_prefetch_bucket_size": int(5e8)
                 },
                 "gradient_accumulation_steps": args.gradient_accumulation_steps,
                 "gradient_clipping": 1.0,
