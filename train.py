@@ -4,7 +4,7 @@ import evaluate
 import torch
 import deepspeed
 from accelerate import Accelerator
-from accelerate.utils import DeepSpeedPlugin, MixedPrecision
+from accelerate.utils import DeepSpeedPlugin
 from accelerate.state import AcceleratorState
 from accelerate.utils.dataclasses import FullyShardedDataParallelPlugin
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
@@ -13,6 +13,7 @@ from torch.distributed.fsdp.fully_sharded_data_parallel import (
     BackwardPrefetch,
     StateDictType,
     ShardingStrategy,
+    MixedPrecision,
 )
 from torch.distributed.fsdp.wrap import (
     transformer_auto_wrap_policy,
