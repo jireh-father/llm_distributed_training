@@ -224,14 +224,13 @@ def main():
         )
     elif args.distributed_type == "fsdp":
         fsdp_plugin = FullyShardedDataParallelPlugin(
-            state_dict_type="FULL_STATE_DICT",
+            state_dict_type=StateDictType.FULL_STATE_DICT,
             backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
             param_init_fn=None,
             cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
             sharding_strategy=ShardingStrategy.FULL_SHARD,
             auto_wrap_policy=transformer_auto_wrap_policy,
-            use_orig_params=True,
-            mixed_precision=torch.float16
+            use_orig_params=True
         )
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
