@@ -4,7 +4,19 @@ import evaluate
 import torch
 import deepspeed
 from accelerate import Accelerator
-from accelerate.utils import DeepSpeedPlugin
+from accelerate.utils import DeepSpeedPlugin, FSDPPlugin
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    FullyShardedDataParallel as FSDP,
+    CPUOffload,
+    BackwardPrefetch,
+    StateDictType,
+    ShardingStrategy,
+)
+from torch.distributed.fsdp.wrap import (
+    transformer_auto_wrap_policy,
+    enable_wrap,
+    wrap,
+)
 from datasets import load_dataset
 from peft import (
     get_peft_model,
@@ -72,6 +84,20 @@ def parse_args():
         help="데이터셋 저장 경로"
     )
     
+    # 분산 학습 관련 인자 추가
+    parser.add_argument(
+        "--distributed_type",
+        type=str,
+        default="fsdp",
+        choices=["no", "deepspeed", "fsdp"],
+        help="분산 학습 방식 선택"
+    )
+    parser.add_argument(
+        "--fsdp_offload",
+        action="store_true",
+        help="FSDP CPU 오프로딩 사용"
+    )
+    
     return parser.parse_args()
 
 def get_peft_config(peft_type: str, args: argparse.Namespace):
@@ -114,28 +140,60 @@ def main():
     os.environ["HF_HOME"] = args.cache_dir
     os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
     
-    # DeepSpeed 플러그인 설정
-    deepspeed_plugin = DeepSpeedPlugin(
-        zero_stage=3,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        gradient_clipping=1.0,
-        offload_optimizer_device="cpu",
-        offload_param_device="cpu",
-        zero3_init_flag=True,
-        zero3_save_16bit_model=True,
-        zero3_config={
-            "prefetch_bucket_size": int(5e8),
-            "param_persistence_threshold": int(1e6),
-            "max_live_parameters": int(1e9),
-            "max_reuse_distance": int(1e9),
-        }
-    )
+    # 분산 학습 플러그인 설정
+    if args.distributed_type == "deepspeed":
+        plugin = DeepSpeedPlugin(
+            hf_ds_config={
+                "zero_optimization": {
+                    "stage": 3,
+                    "offload_optimizer": {
+                        "device": "cpu",
+                        "pin_memory": True
+                    },
+                    "offload_param": {
+                        "device": "cpu",
+                        "pin_memory": True
+                    },
+                    "overlap_comm": True,
+                    "contiguous_gradients": True,
+                    "prefetch_bucket_size": int(5e8),
+                    "param_persistence_threshold": int(1e6),
+                    "max_live_parameters": int(1e9),
+                    "max_reuse_distance": int(1e9),
+                    "stage3_gather_16bit_weights_on_model_save": True
+                },
+                "gradient_accumulation_steps": args.gradient_accumulation_steps,
+                "gradient_clipping": 1.0,
+                "train_batch_size": args.batch_size * args.gradient_accumulation_steps,
+                "fp16": {
+                    "enabled": True,
+                    "loss_scale": 0,
+                    "loss_scale_window": 1000,
+                    "initial_scale_power": 16,
+                    "hysteresis": 2,
+                    "min_loss_scale": 1
+                }
+            }
+        )
+    elif args.distributed_type == "fsdp":
+        plugin = FSDPPlugin(
+            sharding_strategy=ShardingStrategy.FULL_SHARD,
+            cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
+            backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+            state_dict_type=StateDictType.FULL_STATE_DICT,
+            activation_checkpointing=True,
+            mixed_precision=torch.float16,
+            auto_wrap_policy=transformer_auto_wrap_policy,
+        )
+    else:
+        plugin = None
     
     # Accelerator 초기화
     accelerator = Accelerator(
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision="fp16",
-        deepspeed_plugin=deepspeed_plugin
+        fsdp_plugin=plugin if args.distributed_type == "fsdp" else None,
+        deepspeed_plugin=plugin if args.distributed_type == "deepspeed" else None,
     )
     
     # 데이터셋 로드 (캐시 경로 지정)
