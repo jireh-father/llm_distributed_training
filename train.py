@@ -147,6 +147,18 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     
+    # 분산 학습 환경 설정
+    local_rank = int(os.environ.get("LOCAL_RANK", -1))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+    
+    if local_rank != -1:
+        torch.cuda.set_device(local_rank)
+        device = torch.device("cuda", local_rank)
+        torch.distributed.init_process_group(
+            backend="nccl",
+            init_method="env://"
+        )
+    
     # Gemma 모델일 경우 토큰 검증
     if "gemma" in args.model_name_or_path and args.hf_token is None:
         raise ValueError(
@@ -156,9 +168,13 @@ def main():
             "3. --hf_token 인자로 토큰을 전달하세요."
         )
     
-    # 캐시 디렉토리 생성
-    os.makedirs(args.cache_dir, exist_ok=True)
-    os.makedirs(args.dataset_dir, exist_ok=True)
+    # 캐시 디렉토리 생성 (메인 프로세스에서만)
+    if local_rank in [-1, 0]:
+        os.makedirs(args.cache_dir, exist_ok=True)
+        os.makedirs(args.dataset_dir, exist_ok=True)
+        os.makedirs(args.output_dir, exist_ok=True)
+    if world_size > 1:
+        torch.distributed.barrier()  # 다른 프로세스들이 디렉토리 생성을 기다림
     
     # 환경변수 설정
     os.environ["HF_HOME"] = args.cache_dir
@@ -281,9 +297,17 @@ def main():
         cache_dir=os.path.join(args.cache_dir, "model")
     )
     
+    # PEFT 설정 적용 전에 모든 파라미터를 float16으로 변환
+    model = model.to(torch.float16)
+    
     # PEFT 설정 적용
     peft_config = get_peft_config(args.peft_type, args)
     model = get_peft_model(model, peft_config)
+    
+    # PEFT 적용 후 추가된 파라미터도 float16으로 변환
+    for param in model.parameters():
+        param.data = param.data.to(torch.float16)
+    
     model.print_trainable_parameters()
     
     # 옵티마이저 및 스케줄러 설정
