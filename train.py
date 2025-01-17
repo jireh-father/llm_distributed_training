@@ -297,9 +297,11 @@ def main():
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name_or_path,
         config=config,
-        torch_dtype=torch.float16,
         cache_dir=os.path.join(args.cache_dir, "model")
     )
+    
+    # 모든 파라미터를 float32로 변환
+    model = model.to(torch.float32)
     
     # PEFT 설정 적용
     peft_config = get_peft_config(args.peft_type, args)
