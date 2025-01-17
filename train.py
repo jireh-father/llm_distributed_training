@@ -283,14 +283,22 @@ def main():
     )
     
     # 데이터로더 생성
+    def collate_fn(examples):
+        return {
+            key: torch.tensor([example[key] for example in examples])
+            for key in examples[0].keys()
+        }
+    
     train_dataloader = DataLoader(
         tokenized_datasets["train"],
         batch_size=args.batch_size,
         shuffle=True,
+        collate_fn=collate_fn
     )
     eval_dataloader = DataLoader(
         tokenized_datasets["validation"],
         batch_size=args.batch_size,
+        collate_fn=collate_fn
     )
     
     # 모델 초기화 (캐시 경로 지정)
