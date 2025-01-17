@@ -194,9 +194,7 @@ def main():
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             mixed_precision="fp16",
-            fsdp=True,
-            fsdp_offload_params=args.fsdp_offload,
-            kwargs_handlers=[fsdp_plugin]
+            fsdp_plugin=fsdp_plugin
         )
     else:
         accelerator = Accelerator(
