@@ -46,6 +46,7 @@ def parse_args():
         type=str,
         default="google/gemma-2-27b-it",
         choices=[
+            "google/gemma-2-2b-it",
             "google/gemma-2-9b-it",
             "google/gemma-2-27b-it",
             "Qwen/Qwen2.5-72B-Instruct"
