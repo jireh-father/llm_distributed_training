@@ -70,6 +70,26 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, default="output")
     parser.add_argument("--seed", type=int, default=42)
     
+    # 모델 병렬화 관련 인자
+    parser.add_argument(
+        "--tensor_parallel_size",
+        type=int,
+        default=2,
+        help="Tensor Parallelism 크기"
+    )
+    parser.add_argument(
+        "--pipeline_parallel_size",
+        type=int,
+        default=2,
+        help="Pipeline Parallelism 크기"
+    )
+    parser.add_argument(
+        "--pipe_chunk_size",
+        type=int,
+        default=2,
+        help="Pipeline parallel chunk 크기"
+    )
+    
     # LoRA 관련 인자
     parser.add_argument("--lora_r", type=int, default=64)
     parser.add_argument("--lora_alpha", type=int, default=128)
@@ -217,6 +237,21 @@ def main():
                     "initial_scale_power": 16,
                     "hysteresis": 2,
                     "min_loss_scale": 1
+                },
+                "tensor_parallel": {
+                    "enabled": True,
+                    "tp_size": 2  # 2-way tensor parallelism
+                },
+                "pipeline_parallel": {
+                    "enabled": True,
+                    "num_stages": 2,  # 2-way pipeline parallelism
+                    "pipe_chunk_size": 2
+                },
+                "activation_checkpointing": {
+                    "partition_activations": True,
+                    "cpu_checkpointing": True,
+                    "contiguous_memory_optimization": True,
+                    "number_checkpoints": 2
                 }
             }
         )
