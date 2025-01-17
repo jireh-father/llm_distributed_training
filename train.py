@@ -267,20 +267,19 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
     
     def tokenize_function(examples):
-        return tokenizer(
+        outputs = tokenizer(
             examples["sentence"],
             padding="max_length",
             truncation=True,
             max_length=args.max_length,
         )
-    
-    # 데이터셋의 'labels' 컬럼은 유지하고 나머지만 제거
-    columns_to_remove = [col for col in dataset["train"].column_names if col != "label"]
+        outputs["labels"] = examples["label"]  # label을 labels로 복사
+        return outputs
     
     tokenized_datasets = dataset.map(
         tokenize_function,
         batched=True,
-        remove_columns=columns_to_remove,
+        remove_columns=dataset["train"].column_names,  # 원본 컬럼 모두 제거
     )
     
     # 데이터로더 생성
