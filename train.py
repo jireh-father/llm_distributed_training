@@ -362,14 +362,24 @@ def main():
     model.print_trainable_parameters()
     
     # 옵티마이저 및 스케줄러 설정
-    optimizer = bnb.optim.AdamW8bit(
-        model.parameters(),
-        lr=args.learning_rate,
-        betas=(0.9, 0.999),
-        weight_decay=0.01,
-        optim_bits=8,
-        min_8bit_size=4096
-    )
+    if args.distributed_type == "deepspeed":
+        optimizer = deepspeed.ops.adam.DeepSpeedCPUAdam(
+            model.parameters(),
+            lr=args.learning_rate,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=0.01,
+            adamw_mode=True
+        )
+    else:
+        optimizer = bnb.optim.AdamW8bit(
+            model.parameters(),
+            lr=args.learning_rate,
+            betas=(0.9, 0.999),
+            weight_decay=0.01,
+            optim_bits=8,
+            min_8bit_size=4096
+        )
     num_update_steps_per_epoch = len(train_dataloader) // args.gradient_accumulation_steps
     max_train_steps = args.num_epochs * num_update_steps_per_epoch
     num_warmup_steps = int(max_train_steps * args.warmup_ratio)
