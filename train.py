@@ -4,7 +4,8 @@ import evaluate
 import torch
 import deepspeed
 from accelerate import Accelerator
-from accelerate.utils import DeepSpeedPlugin, FSDPPlugin
+from accelerate.utils import DeepSpeedPlugin
+from accelerate.state import AcceleratorState
 from torch.distributed.fsdp.fully_sharded_data_parallel import (
     FullyShardedDataParallel as FSDP,
     CPUOffload,
@@ -141,6 +142,7 @@ def main():
     os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
     
     # 분산 학습 플러그인 설정
+    fsdp_config = None
     if args.distributed_type == "deepspeed":
         plugin = DeepSpeedPlugin(
             hf_ds_config={
@@ -175,24 +177,28 @@ def main():
                 }
             }
         )
+        fsdp_config = None
     elif args.distributed_type == "fsdp":
-        plugin = FSDPPlugin(
-            sharding_strategy=ShardingStrategy.FULL_SHARD,
-            cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
-            backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-            state_dict_type=StateDictType.FULL_STATE_DICT,
-            activation_checkpointing=True,
-            mixed_precision=torch.float16,
-            auto_wrap_policy=transformer_auto_wrap_policy,
-        )
+        plugin = None
+        fsdp_config = {
+            "fsdp_transformer_layer_cls_to_wrap": "GemmaDecoderLayer",
+            "fsdp_offload_params": args.fsdp_offload,
+            "fsdp_state_dict_type": "FULL_STATE_DICT",
+            "fsdp_backward_prefetch_policy": "BACKWARD_PRE",
+            "fsdp_sharding_strategy": "FULL_SHARD",
+            "fsdp_auto_wrap_policy": transformer_auto_wrap_policy,
+            "fsdp_min_num_params": 1e6,
+            "fsdp_cpu_offload": args.fsdp_offload,
+        }
     else:
         plugin = None
+        fsdp_config = None
     
     # Accelerator 초기화
     accelerator = Accelerator(
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision="fp16",
-        fsdp_plugin=plugin if args.distributed_type == "fsdp" else None,
+        fsdp_config=fsdp_config,
         deepspeed_plugin=plugin if args.distributed_type == "deepspeed" else None,
     )
     
