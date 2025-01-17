@@ -100,6 +100,14 @@ def parse_args():
         help="FSDP CPU 오프로딩 사용"
     )
     
+    # Hugging Face 토큰 설정
+    parser.add_argument(
+        "--hf_token",
+        type=str,
+        default=None,
+        help="Hugging Face 토큰 (필수: Gemma 모델 접근용)"
+    )
+    
     return parser.parse_args()
 
 def get_peft_config(peft_type: str, args: argparse.Namespace):
@@ -134,6 +142,14 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     
+    if args.hf_token is None:
+        raise ValueError(
+            "Gemma 모델에 접근하기 위해서는 Hugging Face 토큰이 필요합니다. "
+            "1. https://huggingface.co/google/gemma-2-27b-it 에서 모델 사용 약관에 동의하세요. "
+            "2. https://huggingface.co/settings/tokens 에서 토큰을 생성하세요. "
+            "3. --hf_token 인자로 토큰을 전달하세요."
+        )
+    
     # 캐시 디렉토리 생성
     os.makedirs(args.cache_dir, exist_ok=True)
     os.makedirs(args.dataset_dir, exist_ok=True)
@@ -141,6 +157,7 @@ def main():
     # 환경변수 설정
     os.environ["HF_HOME"] = args.cache_dir
     os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = args.hf_token  # 토큰 설정
     
     # 분산 학습 플러그인 설정
     if args.distributed_type == "deepspeed":
