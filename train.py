@@ -111,9 +111,8 @@ def main():
     os.makedirs(args.dataset_dir, exist_ok=True)
     
     # 환경변수 설정
-    os.environ["TRANSFORMERS_CACHE"] = os.path.join(args.cache_dir, "transformers")
-    os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
     os.environ["HF_HOME"] = args.cache_dir
+    os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
     
     # DeepSpeed 플러그인 설정
     deepspeed_plugin = DeepSpeedPlugin(
@@ -124,10 +123,12 @@ def main():
         offload_param_device="cpu",
         zero3_init_flag=True,
         zero3_save_16bit_model=True,
-        stage3_prefetch_bucket_size=5e8,
-        stage3_param_persistence_threshold=1e6,
-        stage3_max_live_parameters=1e9,
-        stage3_max_reuse_distance=1e9,
+        zero3_config={
+            "prefetch_bucket_size": int(5e8),
+            "param_persistence_threshold": int(1e6),
+            "max_live_parameters": int(1e9),
+            "max_reuse_distance": int(1e9),
+        }
     )
     
     # Accelerator 초기화
