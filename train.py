@@ -221,14 +221,9 @@ def main():
                     },
                     "overlap_comm": True,
                     "contiguous_gradients": True,
-                    "prefetch_bucket_size": int(5e8),
-                    "param_persistence_threshold": int(1e6),
-                    "max_live_parameters": int(1e9),
-                    "max_reuse_distance": int(1e9),
                     "stage3_gather_16bit_weights_on_model_save": True,
-                    "stage3_max_live_parameters": int(1e9),
-                    "stage3_max_reuse_distance": int(1e9),
-                    "stage3_prefetch_bucket_size": int(5e8)
+                    "reduce_bucket_size": int(5e8),
+                    "stage3_param_persistence_threshold": int(1e6)
                 },
                 "gradient_accumulation_steps": args.gradient_accumulation_steps,
                 "gradient_clipping": 1.0,
@@ -243,18 +238,12 @@ def main():
                 },
                 "tensor_parallel": {
                     "enabled": True,
-                    "tp_size": 2  # 2-way tensor parallelism
+                    "size": args.tensor_parallel_size
                 },
                 "pipeline_parallel": {
                     "enabled": True,
-                    "num_stages": 2,  # 2-way pipeline parallelism
-                    "pipe_chunk_size": 2
-                },
-                "activation_checkpointing": {
-                    "partition_activations": True,
-                    "cpu_checkpointing": True,
-                    "contiguous_memory_optimization": True,
-                    "number_checkpoints": 2
+                    "size": args.pipeline_parallel_size,
+                    "micro_batches": args.pipe_chunk_size
                 }
             }
         )
