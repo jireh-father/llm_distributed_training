@@ -4,7 +4,7 @@ import evaluate
 import torch
 import deepspeed
 from accelerate import Accelerator
-from accelerate.utils import DummyOptim, DummyScheduler
+from accelerate.utils import DeepSpeedPlugin
 from datasets import load_dataset
 from peft import (
     get_peft_model,
@@ -58,6 +58,20 @@ def parse_args():
     parser.add_argument("--num_virtual_tokens", type=int, default=20)
     parser.add_argument("--encoder_hidden_size", type=int, default=512)
     
+    # 캐시 관련 인자 추가
+    parser.add_argument(
+        "--cache_dir",
+        type=str,
+        default="./cache",
+        help="모델과 토크나이저의 캐시 저장 경로"
+    )
+    parser.add_argument(
+        "--dataset_dir",
+        type=str,
+        default="./dataset",
+        help="데이터셋 저장 경로"
+    )
+    
     return parser.parse_args()
 
 def get_peft_config(peft_type: str, args: argparse.Namespace):
@@ -92,39 +106,49 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     
-    # Accelerator 초기화 (DeepSpeed 설정 포함)
+    # 캐시 디렉토리 생성
+    os.makedirs(args.cache_dir, exist_ok=True)
+    os.makedirs(args.dataset_dir, exist_ok=True)
+    
+    # 환경변수 설정
+    os.environ["TRANSFORMERS_CACHE"] = os.path.join(args.cache_dir, "transformers")
+    os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
+    os.environ["HF_HOME"] = args.cache_dir
+    
+    # DeepSpeed 플러그인 설정
+    deepspeed_plugin = DeepSpeedPlugin(
+        zero_stage=3,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        gradient_clipping=1.0,
+        offload_optimizer_device="cpu",
+        offload_param_device="cpu",
+        zero3_init_flag=True,
+        zero3_save_16bit_model=True,
+        stage3_prefetch_bucket_size=5e8,
+        stage3_param_persistence_threshold=1e6,
+        stage3_max_live_parameters=1e9,
+        stage3_max_reuse_distance=1e9,
+    )
+    
+    # Accelerator 초기화
     accelerator = Accelerator(
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision="fp16",
-        deepspeed_plugin={
-            "zero_stage": 3,
-            "gradient_accumulation_steps": args.gradient_accumulation_steps,
-            "stage3_prefetch_bucket_size": 5e8,
-            "stage3_param_persistence_threshold": 1e6,
-            "stage3_max_live_parameters": 1e9,
-            "stage3_max_reuse_distance": 1e9,
-            "fp16": {
-                "enabled": True,
-                "loss_scale": 0,
-                "loss_scale_window": 1000,
-                "initial_scale_power": 16,
-                "hysteresis": 2,
-                "min_loss_scale": 1
-            },
-            "offload_optimizer": {
-                "device": "cpu",
-                "pin_memory": True
-            },
-            "offload_param": {
-                "device": "cpu",
-                "pin_memory": True
-            }
-        }
+        deepspeed_plugin=deepspeed_plugin
     )
     
-    # 데이터셋 로드
-    dataset = load_dataset("glue", "sst2")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    # 데이터셋 로드 (캐시 경로 지정)
+    dataset = load_dataset(
+        "glue",
+        "sst2",
+        cache_dir=os.path.join(args.dataset_dir, "glue")
+    )
+    
+    # 토크나이저 로드 (캐시 경로 지정)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model_name_or_path,
+        cache_dir=os.path.join(args.cache_dir, "tokenizer")
+    )
     
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -154,14 +178,18 @@ def main():
         batch_size=args.batch_size,
     )
     
-    # 모델 초기화
-    config = AutoConfig.from_pretrained(args.model_name_or_path)
+    # 모델 초기화 (캐시 경로 지정)
+    config = AutoConfig.from_pretrained(
+        args.model_name_or_path,
+        cache_dir=os.path.join(args.cache_dir, "config")
+    )
     config.num_labels = 2
     
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name_or_path,
         config=config,
         torch_dtype=torch.float16,
+        cache_dir=os.path.join(args.cache_dir, "model")
     )
     
     # PEFT 설정 적용
