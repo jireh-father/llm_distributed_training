@@ -227,7 +227,8 @@ def main():
                 },
                 "gradient_accumulation_steps": args.gradient_accumulation_steps,
                 "gradient_clipping": 1.0,
-                "train_batch_size": args.batch_size * args.gradient_accumulation_steps,
+                "train_batch_size": args.batch_size * args.gradient_accumulation_steps * world_size,
+                "train_micro_batch_size_per_gpu": args.batch_size,
                 "fp16": {
                     "enabled": True,
                     "loss_scale": 0,
@@ -238,12 +239,12 @@ def main():
                 },
                 "tensor_parallel": {
                     "enabled": True,
-                    "size": args.tensor_parallel_size
+                    "size": 2  # 2-way tensor parallelism
                 },
                 "pipeline_parallel": {
                     "enabled": True,
-                    "size": args.pipeline_parallel_size,
-                    "micro_batches": args.pipe_chunk_size
+                    "size": 2,  # 2-way pipeline parallelism
+                    "micro_batches": args.gradient_accumulation_steps
                 }
             }
         )
