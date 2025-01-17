@@ -44,7 +44,11 @@ def parse_args():
         "--model_name_or_path",
         type=str,
         default="google/gemma-2-27b-it",
-        help="사용할 모델의 이름 또는 경로"
+        choices=[
+            "google/gemma-2-27b-it",
+            "Qwen/Qwen2.5-72B-Instruct"
+        ],
+        help="사용할 모델 선택 (Gemma 27B 또는 Qwen 72B)"
     )
     parser.add_argument(
         "--peft_type",
@@ -142,10 +146,11 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     
-    if args.hf_token is None:
+    # Gemma 모델일 경우 토큰 검증
+    if "gemma" in args.model_name_or_path and args.hf_token is None:
         raise ValueError(
             "Gemma 모델에 접근하기 위해서는 Hugging Face 토큰이 필요합니다. "
-            "1. https://huggingface.co/google/gemma-2-27b-it 에서 모델 사용 약관에 동의하세요. "
+            f"1. https://huggingface.co/{args.model_name_or_path} 에서 모델 사용 약관에 동의하세요. "
             "2. https://huggingface.co/settings/tokens 에서 토큰을 생성하세요. "
             "3. --hf_token 인자로 토큰을 전달하세요."
         )
@@ -157,7 +162,8 @@ def main():
     # 환경변수 설정
     os.environ["HF_HOME"] = args.cache_dir
     os.environ["HF_DATASETS_CACHE"] = os.path.join(args.cache_dir, "datasets")
-    os.environ["HUGGING_FACE_HUB_TOKEN"] = args.hf_token  # 토큰 설정
+    if args.hf_token:
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = args.hf_token
     
     # 분산 학습 플러그인 설정
     if args.distributed_type == "deepspeed":
