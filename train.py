@@ -45,10 +45,11 @@ def parse_args():
         type=str,
         default="google/gemma-2-27b-it",
         choices=[
+            "google/gemma-2-9b-it",
             "google/gemma-2-27b-it",
             "Qwen/Qwen2.5-72B-Instruct"
         ],
-        help="사용할 모델 선택 (Gemma 27B 또는 Qwen 72B)"
+        help="사용할 모델 선택 (Gemma 9B/27B 또는 Qwen 72B)"
     )
     parser.add_argument(
         "--peft_type",
