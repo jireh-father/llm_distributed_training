@@ -237,8 +237,7 @@ def main():
                 buffer_dtype=torch.float32
             ),
             use_orig_params=True,
-            sharding_strategy=ShardingStrategy.FULL_SHARD,
-            auto_wrap_policy=transformer_auto_wrap_policy
+            sharding_strategy=ShardingStrategy.FULL_SHARD
         )
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
@@ -275,10 +274,13 @@ def main():
             max_length=args.max_length,
         )
     
+    # 데이터셋의 'labels' 컬럼은 유지하고 나머지만 제거
+    columns_to_remove = [col for col in dataset["train"].column_names if col != "label"]
+    
     tokenized_datasets = dataset.map(
         tokenize_function,
         batched=True,
-        remove_columns=dataset["train"].column_names,
+        remove_columns=columns_to_remove,
     )
     
     # 데이터로더 생성
@@ -353,7 +355,7 @@ def main():
                 outputs = model(
                     input_ids=batch["input_ids"],
                     attention_mask=batch["attention_mask"],
-                    labels=batch["label"],
+                    labels=batch["labels"],
                 )
                 
                 loss = outputs.loss
@@ -381,7 +383,7 @@ def main():
                     attention_mask=batch["attention_mask"],
                 )
             predictions = outputs.logits.argmax(dim=-1)
-            predictions, references = accelerator.gather_for_metrics((predictions, batch["label"]))
+            predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
             metric.add_batch(predictions=predictions, references=references)
         
         eval_metric = metric.compute()
