@@ -238,7 +238,7 @@ def main():
             ),
             use_orig_params=True,
             sharding_strategy=ShardingStrategy.FULL_SHARD,
-            device_id=torch.cuda.current_device()
+            auto_wrap_policy=transformer_auto_wrap_policy
         )
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
