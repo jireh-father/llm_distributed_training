@@ -38,6 +38,7 @@ from transformers import (
 )
 from torch.utils.data import DataLoader
 from typing import Dict, List
+import bitsandbytes as bnb
 
 def parse_args():
     parser = argparse.ArgumentParser(description="파인튜닝 스크립트")
@@ -294,6 +295,7 @@ def main():
         cache_dir=os.path.join(args.cache_dir, "config")
     )
     config.num_labels = 2
+    config.use_cache = False  # gradient checkpointing을 위해 필요
     
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name_or_path,
@@ -304,13 +306,23 @@ def main():
     # 모든 파라미터를 float32로 변환
     model = model.to(torch.float32)
     
+    # Gradient Checkpointing 활성화
+    model.gradient_checkpointing_enable()
+    
     # PEFT 설정 적용
     peft_config = get_peft_config(args.peft_type, args)
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
     
     # 옵티마이저 및 스케줄러 설정
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+    optimizer = bnb.optim.AdamW8bit(
+        model.parameters(),
+        lr=args.learning_rate,
+        betas=(0.9, 0.999),
+        weight_decay=0.01,
+        optim_bits=8,
+        min_8bit_size=4096
+    )
     num_update_steps_per_epoch = len(train_dataloader) // args.gradient_accumulation_steps
     max_train_steps = args.num_epochs * num_update_steps_per_epoch
     num_warmup_steps = int(max_train_steps * args.warmup_ratio)
