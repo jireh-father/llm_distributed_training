@@ -229,7 +229,9 @@ def main():
             param_init_fn=None,
             cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
             sharding_strategy=ShardingStrategy.FULL_SHARD,
-            auto_wrap_policy=transformer_auto_wrap_policy
+            auto_wrap_policy=transformer_auto_wrap_policy,
+            use_orig_params=True,
+            mixed_precision=torch.float16
         )
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
@@ -297,17 +299,9 @@ def main():
         cache_dir=os.path.join(args.cache_dir, "model")
     )
     
-    # PEFT 설정 적용 전에 모든 파라미터를 float16으로 변환
-    model = model.to(torch.float16)
-    
     # PEFT 설정 적용
     peft_config = get_peft_config(args.peft_type, args)
     model = get_peft_model(model, peft_config)
-    
-    # PEFT 적용 후 추가된 파라미터도 float16으로 변환
-    for param in model.parameters():
-        param.data = param.data.to(torch.float16)
-    
     model.print_trainable_parameters()
     
     # 옵티마이저 및 스케줄러 설정
