@@ -232,10 +232,13 @@ def main():
             param_init_fn=None,
             cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
             mixed_precision_policy=MixedPrecision(
-                param_dtype=torch.float16,
+                param_dtype=torch.float32,
                 reduce_dtype=torch.float16,
-                buffer_dtype=torch.float16
-            )
+                buffer_dtype=torch.float32
+            ),
+            use_orig_params=True,
+            sharding_strategy=ShardingStrategy.FULL_SHARD,
+            device_id=torch.cuda.current_device()
         )
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
