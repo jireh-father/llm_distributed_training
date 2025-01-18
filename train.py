@@ -186,10 +186,10 @@ def get_peft_config(peft_type: str, args: argparse.Namespace):
             num_virtual_tokens=args.num_virtual_tokens,
             prefix_projection=True,
             encoder_hidden_size=args.encoder_hidden_size,
-            prefix_dropout=0.1,
+            inference_mode=False,
             token_dim=2048,  # Gemma hidden size
             num_attention_heads=8,  # Gemma num attention heads
-            num_layers=18,  # Gemma num layers
+            num_layers=18  # Gemma num layers
         )
     elif peft_type == "prompt":
         return PromptTuningConfig(
