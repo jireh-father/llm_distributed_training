@@ -222,6 +222,11 @@ def main():
     if local_rank != -1:
         torch.cuda.set_device(local_rank)
         device = torch.device("cuda", local_rank)
+        
+        # GPU 장치 정보 설정
+        gpu_device_ids = [local_rank]
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(local_rank)
+        
         init_process_group_kwargs = {
             "backend": "nccl",
             "init_method": "env://",
@@ -230,6 +235,10 @@ def main():
             "timeout": datetime.timedelta(minutes=15)
         }
         torch.distributed.init_process_group(**init_process_group_kwargs)
+        
+        # 프로세스 그룹에 device_ids 설정
+        if torch.distributed.group.WORLD is not None:
+            torch.distributed.barrier(device_ids=gpu_device_ids)
     
     # Gemma 모델일 경우 토큰 검증
     if "gemma" in args.model_name_or_path and args.hf_token is None:
