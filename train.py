@@ -215,6 +215,8 @@ def main():
     # 분산 학습 환경 설정
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
+
+    print(f"Local Rank: {local_rank}, World Size: {world_size}")
     
     if local_rank != -1:
         torch.cuda.set_device(local_rank)
