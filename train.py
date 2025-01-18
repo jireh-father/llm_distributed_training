@@ -520,24 +520,40 @@ def main():
         for step, batch in enumerate(train_dataloader):
             step_start_time = time.time()
             
-            with accelerator.accumulate(model):
+            if args.distributed_type == "deepspeed_pp":
+                # Pipeline Parallelism용 처리
                 outputs = model(
                     input_ids=batch["input_ids"],
                     attention_mask=batch["attention_mask"],
                     labels=batch["labels"],
                 )
-                
                 loss = outputs.loss
                 accelerator.backward(loss)
                 
-                if accelerator.sync_gradients:
-                    accelerator.clip_grad_norm_(model.parameters(), 1.0)
+                if step % args.gradient_accumulation_steps == 0:
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad()
+            else:
+                # 일반적인 처리
+                with accelerator.accumulate(model):
+                    outputs = model(
+                        input_ids=batch["input_ids"],
+                        attention_mask=batch["attention_mask"],
+                        labels=batch["labels"],
+                    )
                     
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                
-                total_loss += loss.detach().float()
+                    loss = outputs.loss
+                    accelerator.backward(loss)
+                    
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(model.parameters(), 1.0)
+                        
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad()
+            
+            total_loss += loss.detach().float()
             
             # 진행 상황 업데이트
             step_time = time.time() - step_start_time
