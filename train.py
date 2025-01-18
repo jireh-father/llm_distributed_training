@@ -123,13 +123,27 @@ def parse_args():
         "--distributed_type",
         type=str,
         default="fsdp",
-        choices=["no", "deepspeed", "fsdp"],
+        choices=["no", "deepspeed", "deepspeed_pp", "fsdp"],
         help="분산 학습 방식 선택"
     )
     parser.add_argument(
         "--fsdp_offload",
         action="store_true",
         help="FSDP CPU 오프로딩 사용"
+    )
+    
+    # 분산 학습 관련 인자 추가
+    parser.add_argument(
+        "--pipeline_parallel_size",
+        type=int,
+        default=2,
+        help="Pipeline parallel size"
+    )
+    parser.add_argument(
+        "--pipeline_chunk_size",
+        type=int,
+        default=1,
+        help="Pipeline chunk size"
     )
     
     # Hugging Face 토큰 설정
@@ -297,6 +311,34 @@ def main():
                 },
                 "pipeline_parallel": {
                     "enabled": False
+                }
+            }
+        )
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            mixed_precision="fp16",
+            deepspeed_plugin=plugin
+        )
+    elif args.distributed_type == "deepspeed_pp":
+        plugin = DeepSpeedPlugin(
+            hf_ds_config={
+                "gradient_accumulation_steps": args.gradient_accumulation_steps,
+                "gradient_clipping": 1.0,
+                "train_micro_batch_size_per_gpu": args.batch_size,
+                "train_batch_size": args.batch_size * args.gradient_accumulation_steps * world_size,
+                "fp16": {
+                    "enabled": True,
+                    "loss_scale": 0,
+                    "loss_scale_window": 1000,
+                    "initial_scale_power": 16,
+                    "hysteresis": 2,
+                    "min_loss_scale": 1
+                },
+                "pipeline": {
+                    "enabled": True,
+                    "num_stages": args.pipeline_parallel_size,
+                    "pipe_chunk_size": args.pipeline_chunk_size,
+                    "activation_checkpoint_interval": 1
                 }
             }
         )
