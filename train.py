@@ -43,6 +43,7 @@ from transformers import (
 from torch.utils.data import DataLoader
 from typing import Dict, List
 import bitsandbytes as bnb
+import datetime
 
 def parse_args():
     parser = argparse.ArgumentParser(description="파인튜닝 스크립트")
@@ -221,10 +222,14 @@ def main():
     if local_rank != -1:
         torch.cuda.set_device(local_rank)
         device = torch.device("cuda", local_rank)
-        torch.distributed.init_process_group(
-            backend="nccl",
-            init_method="env://"
-        )
+        init_process_group_kwargs = {
+            "backend": "nccl",
+            "init_method": "env://",
+            "rank": local_rank,
+            "world_size": world_size,
+            "timeout": datetime.timedelta(minutes=15)
+        }
+        torch.distributed.init_process_group(**init_process_group_kwargs)
     
     # Gemma 모델일 경우 토큰 검증
     if "gemma" in args.model_name_or_path and args.hf_token is None:
