@@ -80,20 +80,7 @@ def parse_args():
         type=int,
         default=2,
         help="Tensor Parallelism 크기"
-    )
-    parser.add_argument(
-        "--pipeline_parallel_size",
-        type=int,
-        default=2,
-        help="Pipeline Parallelism 크기"
-    )
-    parser.add_argument(
-        "--pipe_chunk_size",
-        type=int,
-        default=2,
-        help="Pipeline parallel chunk 크기"
-    )
-    
+    )    
     # LoRA 관련 인자
     parser.add_argument("--lora_r", type=int, default=64)
     parser.add_argument("--lora_alpha", type=int, default=128)
@@ -337,7 +324,7 @@ def main():
                 "pipeline": {
                     "enabled": True,
                     "num_stages": args.pipeline_parallel_size,
-                    "pipe_chunk_size": args.pipeline_chunk_size,
+                    "pipeline_chunk_size": args.pipeline_chunk_size,
                     "activation_checkpoint_interval": 1
                 }
             }
