@@ -3,8 +3,6 @@ import os
 import evaluate
 import torch
 import deepspeed
-import time
-from tqdm.auto import tqdm
 from accelerate import Accelerator
 from accelerate.utils import DeepSpeedPlugin
 from accelerate.state import AcceleratorState
@@ -171,9 +169,6 @@ def get_peft_config(peft_type: str, args: argparse.Namespace):
 def main():
     args = parse_args()
     set_seed(args.seed)
-    
-    # 학습 시작 시간 기록
-    start_time = time.time()
     
     # 분산 학습 환경 설정
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
@@ -394,17 +389,10 @@ def main():
     metric = evaluate.load("glue", "sst2")
     
     # 학습 루프
-    total_steps = args.num_epochs * len(train_dataloader)
-    progress_bar = tqdm(total=total_steps, desc="Training")
-    
     for epoch in range(args.num_epochs):
         model.train()
         total_loss = 0
-        epoch_start_time = time.time()
-        
         for step, batch in enumerate(train_dataloader):
-            step_start_time = time.time()
-            
             with accelerator.accumulate(model):
                 outputs = model(
                     input_ids=batch["input_ids"],
@@ -424,52 +412,24 @@ def main():
                 
                 total_loss += loss.detach().float()
             
-            # 진행 상황 업데이트
-            step_time = time.time() - step_start_time
-            samples_per_second = args.batch_size * args.gradient_accumulation_steps / step_time
-            current_lr = optimizer.param_groups[0]["lr"]
-            
-            if accelerator.is_main_process and step % 10 == 0:
+            if step % 100 == 0:
                 avg_loss = total_loss / (step + 1)
-                progress_bar.set_postfix({
-                    'epoch': epoch,
-                    'loss': f'{avg_loss:.4f}',
-                    'lr': f'{current_lr:.2e}',
-                    'samples/s': f'{samples_per_second:.2f}'
-                })
-                progress_bar.update(1)
+                print(f"Epoch: {epoch}, Step: {step}, Average Loss: {avg_loss}")
         
-        # 에폭 종료 시 평가
+        # 평가
         model.eval()
-        eval_loss = 0
-        eval_steps = 0
-        
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        for batch in eval_dataloader:
             with torch.no_grad():
                 outputs = model(
                     input_ids=batch["input_ids"],
                     attention_mask=batch["attention_mask"],
-                    labels=batch["labels"]
                 )
-                eval_loss += outputs.loss.detach().float()
-                eval_steps += 1
-                
-                predictions = outputs.logits.argmax(dim=-1)
-                predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
-                metric.add_batch(predictions=predictions, references=references)
+            predictions = outputs.logits.argmax(dim=-1)
+            predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
+            metric.add_batch(predictions=predictions, references=references)
         
         eval_metric = metric.compute()
-        eval_loss = eval_loss / eval_steps
-        
-        # 에폭 결과 출력
-        epoch_time = time.time() - epoch_start_time
-        if accelerator.is_main_process:
-            print(f"\nEpoch {epoch} Results:")
-            print(f"Train Loss: {total_loss / len(train_dataloader):.4f}")
-            print(f"Eval Loss: {eval_loss:.4f}")
-            print(f"Accuracy: {eval_metric['accuracy']:.4f}")
-            print(f"Epoch Time: {epoch_time:.2f}s")
-            print(f"Learning Rate: {current_lr:.2e}")
+        print(f"Epoch {epoch}: {eval_metric}")
         
         # 모델 저장
         if args.output_dir is not None:
@@ -483,12 +443,6 @@ def main():
             )
             if accelerator.is_main_process:
                 tokenizer.save_pretrained(output_dir)
-    
-    # 전체 학습 시간 출력
-    total_time = time.time() - start_time
-    if accelerator.is_main_process:
-        print(f"\nTraining completed in {total_time:.2f}s")
-        print(f"Average epoch time: {total_time/args.num_epochs:.2f}s")
 
 if __name__ == "__main__":
     main() 
