@@ -313,6 +313,20 @@ def main():
                 "gradient_clipping": 1.0,
                 "train_micro_batch_size_per_gpu": args.batch_size,
                 "train_batch_size": args.batch_size * args.gradient_accumulation_steps * world_size,
+                "zero_optimization": {
+                    "stage": 1,
+                    "offload_optimizer": {
+                        "device": "none",
+                        "pin_memory": False
+                    },
+                    "offload_param": {
+                        "device": "none",
+                        "pin_memory": False
+                    },
+                    "overlap_comm": True,
+                    "contiguous_gradients": True,
+                    "reduce_bucket_size": int(5e8)
+                },
                 "fp16": {
                     "enabled": True,
                     "loss_scale": 0,
