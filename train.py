@@ -114,9 +114,9 @@ def parse_args():
         help="분산 학습 방식 선택"
     )
     parser.add_argument(
-        "--fsdp_offload",
+        "--offload",
         action="store_true",
-        help="FSDP CPU 오프로딩 사용"
+        help="CPU 오프로딩 사용 (DeepSpeed 및 FSDP)"
     )
     
     # 분산 학습 관련 인자 추가
@@ -269,12 +269,12 @@ def main():
                 "zero_optimization": {
                     "stage": 3,
                     "offload_optimizer": {
-                        "device": "none",
-                        "pin_memory": False
+                        "device": "cpu" if args.offload else "none",
+                        "pin_memory": True if args.offload else False
                     },
                     "offload_param": {
-                        "device": "none",
-                        "pin_memory": False
+                        "device": "cpu" if args.offload else "none",
+                        "pin_memory": True if args.offload else False
                     },
                     "overlap_comm": True,
                     "contiguous_gradients": True,
@@ -355,7 +355,7 @@ def main():
             state_dict_type=StateDictType.FULL_STATE_DICT,
             backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
             param_init_fn=None,
-            cpu_offload=CPUOffload(offload_params=args.fsdp_offload),
+            cpu_offload=CPUOffload(offload_params=args.offload),
             mixed_precision_policy=MixedPrecision(
                 param_dtype=torch.float32,
                 reduce_dtype=torch.float16,
