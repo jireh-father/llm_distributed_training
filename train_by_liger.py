@@ -168,16 +168,15 @@ def main():
     model_args, data_args, peft_args, quant_args, eval_args, training_args = parser.parse_args_into_dataclasses()
     
     if local_rank == -1:
-        # set training_args
+        # 단일 GPU 또는 CPU 모드
         training_args.local_rank = local_rank
-
-    # 분산 학습 환경 초기화
-    if training_args.local_rank != -1:
-        torch.cuda.set_device(training_args.local_rank)
-        torch.distributed.init_process_group(
-            backend="nccl",
-            init_method="env://"
-        )
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        # 분산 학습 모드
+        training_args.local_rank = local_rank
+        training_args.ddp_backend = "nccl"
+        training_args.parallel_mode = "distributed"
+        device = torch.device(f"cuda:{local_rank}")
     
     # Hugging Face 토큰 설정
     if model_args.hf_token:
@@ -310,6 +309,18 @@ def main():
     
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
+    
+    # 모델을 해당 GPU로 이동
+    model = model.to(device)
+    
+    # 분산 학습 모드에서 DistributedDataParallel 래핑
+    if training_args.local_rank != -1:
+        model = torch.nn.parallel.DistributedDataParallel(
+            model,
+            device_ids=[training_args.local_rank],
+            output_device=training_args.local_rank,
+            find_unused_parameters=False
+        )
     
     class CustomTrainer(Trainer):
         def compute_metrics(self, eval_preds):
