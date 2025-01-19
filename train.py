@@ -459,11 +459,15 @@ def main():
         
         return tokenized
     
-    tokenized_datasets = raw_datasets.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=raw_datasets["train"].column_names,
-    )
+    # 토크나이징 적용
+    tokenized_datasets = {
+        split: dataset.map(
+            tokenize_function,
+            batched=True,
+            remove_columns=raw_datasets[split].column_names,
+        )
+        for split, dataset in raw_datasets.items()
+    }
     
     # 데이터로더 생성
     def collate_fn(examples):
