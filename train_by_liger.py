@@ -146,6 +146,15 @@ def main():
     
     model_args, data_args, peft_args, quant_args, eval_args, training_args = parser.parse_args_into_dataclasses()
     
+    # Hugging Face 토큰 설정
+    if model_args.hf_token:
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = model_args.hf_token
+    else:
+        raise ValueError(
+            "Gemma 모델에 접근하기 위해서는 Hugging Face 토큰이 필요합니다. "
+            "--hf_token 인자로 토큰을 전달하세요."
+        )
+    
     # 로깅 설정
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
