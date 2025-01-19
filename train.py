@@ -45,6 +45,8 @@ from torch.utils.data import DataLoader
 from typing import Dict, List
 import bitsandbytes as bnb
 import datetime
+import logging
+import warnings
 
 def parse_args():
     parser = argparse.ArgumentParser(description="파인튜닝 스크립트")
@@ -493,8 +495,8 @@ def main():
         args.model_name_or_path,
         cache_dir=os.path.join(args.cache_dir, "config")
     )
-    config.use_cache = False  # gradient checkpointing을 위해 필요
     
+    # 모델 로드
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         config=config,
@@ -554,6 +556,18 @@ def main():
     
     # 평가 메트릭 초기화
     metric = evaluate.load("glue", "sst2")
+    
+    # 로깅 설정
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO,
+        handlers=[logging.StreamHandler()]
+    )
+    logger = logging.getLogger(__name__)
+    
+    # 경고 필터 설정
+    warnings.filterwarnings("ignore", message=".*cache_implementation.*")
     
     # 학습 루프
     total_steps = args.num_epochs * len(train_dataloader)
