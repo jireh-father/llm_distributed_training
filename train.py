@@ -38,7 +38,8 @@ from transformers import (
     get_linear_schedule_with_warmup,
     set_seed,
     AutoConfig,
-    BitsAndBytesConfig
+    BitsAndBytesConfig,
+    AutoModelForCausalLM
 )
 from torch.utils.data import DataLoader
 from typing import Dict, List
@@ -170,11 +171,11 @@ def parse_args():
         help="Enable gradient checkpointing"
     )
     
-    # Liger Kernel 관련 인자
     parser.add_argument(
-        "--use_liger_kernel",
-        action="store_true",
-        help="Use Liger Kernel"
+        "--max_train_samples",
+        type=int,
+        default=None,
+        help="학습 데이터 수 제한 (None인 경우 전체 데이터 사용)"
     )
     
     return parser.parse_args()
@@ -393,40 +394,61 @@ def main():
     else:
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
-            mixed_precision="fp16",
-            use_liger_kernel=args.use_liger_kernel if args.use_liger_kernel else False
+            mixed_precision="fp16"
         )
     
     # 데이터셋 로드 (캐시 경로 지정)
     dataset = load_dataset(
-        "glue",
-        "sst2",
-        cache_dir=os.path.join(args.dataset_dir, "glue")
+        "tatsu-lab/alpaca",  # 작은 크기의 instruction 데이터셋
+        cache_dir=os.path.join(args.dataset_dir, "alpaca")
     )
+    
+    # 학습 데이터 크기 제한
+    if args.max_train_samples is not None:
+        dataset["train"] = dataset["train"].select(range(min(len(dataset["train"]), args.max_train_samples)))
     
     # 토크나이저 로드 (캐시 경로 지정)
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_name_or_path,
-        cache_dir=os.path.join(args.cache_dir, "tokenizer")
+        cache_dir=os.path.join(args.cache_dir, "tokenizer"),
+        padding_side="right",
+        use_fast=False,
     )
     
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
     def tokenize_function(examples):
-        outputs = tokenizer(
-            examples["sentence"],
+        # Alpaca 형식의 프롬프트 템플릿
+        prompts = [
+            f"### Instruction:\n{instruction}\n\n### Input:\n{input_text}\n\n### Response:\n{output}"
+            if input_text.strip()
+            else f"### Instruction:\n{instruction}\n\n### Response:\n{output}"
+            for instruction, input_text, output in zip(
+                examples["instruction"], 
+                examples["input"], 
+                examples["output"]
+            )
+        ]
+        
+        # 토크나이징
+        tokenized = tokenizer(
+            prompts,
             padding="max_length",
             truncation=True,
             max_length=args.max_length,
+            return_tensors=None,
         )
-        outputs["labels"] = examples["label"]  # label을 labels로 복사
-        return outputs
+        
+        # 레이블 설정 (다음 토큰 예측을 위해 input_ids를 그대로 사용)
+        tokenized["labels"] = tokenized["input_ids"].copy()
+        
+        return tokenized
     
     tokenized_datasets = dataset.map(
         tokenize_function,
         batched=True,
-        remove_columns=dataset["train"].column_names,  # 원본 컬럼 모두 제거
+        remove_columns=dataset["train"].column_names,
     )
     
     # 데이터로더 생성
@@ -453,10 +475,9 @@ def main():
         args.model_name_or_path,
         cache_dir=os.path.join(args.cache_dir, "config")
     )
-    config.num_labels = 2
     config.use_cache = False  # gradient checkpointing을 위해 필요
     
-    model = AutoModelForSequenceClassification.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         config=config,
         cache_dir=os.path.join(args.cache_dir, "model"),
