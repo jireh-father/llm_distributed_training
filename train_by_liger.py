@@ -359,8 +359,11 @@ def main():
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         tokenizer=tokenizer,
-        use_liger_kernel=model_args.liger_kernel,
     )
+    
+    # Liger Kernel 활성화
+    if model_args.liger_kernel:
+        trainer.accelerator.state.use_liger_kernel = True
     
     # 학습 실행
     train_result = trainer.train()
