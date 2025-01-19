@@ -459,10 +459,10 @@ def main():
         
         return tokenized
     
-    tokenized_datasets = dataset.map(
+    tokenized_datasets = raw_datasets.map(
         tokenize_function,
         batched=True,
-        remove_columns=dataset["train"].column_names,
+        remove_columns=raw_datasets["train"].column_names,
     )
     
     # 데이터로더 생성
