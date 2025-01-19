@@ -156,6 +156,13 @@ def main():
         cache_dir=os.path.join(data_args.dataset_dir, "alpaca")
     )
     
+    # 학습/검증 세트로 분할
+    dataset = dataset["train"].train_test_split(test_size=0.1, seed=training_args.seed)
+    dataset = {
+        "train": dataset["train"],
+        "validation": dataset["test"]
+    }
+    
     if data_args.max_train_samples is not None:
         dataset["train"] = dataset["train"].select(range(min(len(dataset["train"]), data_args.max_train_samples)))
     if data_args.max_eval_samples is not None:

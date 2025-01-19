@@ -397,15 +397,23 @@ def main():
             mixed_precision="fp16"
         )
     
-    # 데이터셋 로드 (캐시 경로 지정)
-    dataset = load_dataset(
-        "tatsu-lab/alpaca",  # 작은 크기의 instruction 데이터셋
+    # 데이터셋 로드
+    raw_datasets = load_dataset(
+        "tatsu-lab/alpaca",
         cache_dir=os.path.join(args.dataset_dir, "alpaca")
     )
     
-    # 학습 데이터 크기 제한
+    # 학습/검증 세트로 분할
+    raw_datasets = raw_datasets["train"].train_test_split(test_size=0.1, seed=args.seed)
+    raw_datasets = {
+        "train": raw_datasets["train"],
+        "validation": raw_datasets["test"]
+    }
+    
     if args.max_train_samples is not None:
-        dataset["train"] = dataset["train"].select(range(min(len(dataset["train"]), args.max_train_samples)))
+        raw_datasets["train"] = raw_datasets["train"].select(range(min(len(raw_datasets["train"]), args.max_train_samples)))
+    if args.max_eval_samples is not None:
+        raw_datasets["validation"] = raw_datasets["validation"].select(range(min(len(raw_datasets["validation"]), args.max_eval_samples)))
     
     # 토크나이저 로드 (캐시 경로 지정)
     tokenizer = AutoTokenizer.from_pretrained(
