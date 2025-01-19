@@ -37,13 +37,15 @@ logger = logging.getLogger(__name__)
 class ModelArguments:
     model_name_or_path: str = field(
         default="google/gemma-2-27b-it",
-        choices=[
-            "google/gemma-2-2b-it",
-            "google/gemma-2-9b-it",
-            "google/gemma-2-27b-it",
-            "Qwen/Qwen2.5-72B-Instruct"
-        ],
-        metadata={"help": "사용할 모델 선택 (Gemma 9B/27B 또는 Qwen 72B)"}
+        metadata={
+            "help": "사용할 모델 선택 (Gemma 9B/27B 또는 Qwen 72B)",
+            "choices": [
+                "google/gemma-2-2b-it",
+                "google/gemma-2-9b-it",
+                "google/gemma-2-27b-it",
+                "Qwen/Qwen2.5-72B-Instruct"
+            ]
+        }
     )
     cache_dir: Optional[str] = field(
         default="./cache",
