@@ -51,11 +51,11 @@ class ModelArguments:
         default="./cache",
         metadata={"help": "모델 캐시 디렉토리"}
     )
-    use_liger_kernel: bool = field(
+    liger_kernel: bool = field(
         default=True,
         metadata={"help": "Liger Kernel 사용 여부"}
     )
-    use_flash_attention: bool = field(
+    flash_attention: bool = field(
         default=True,
         metadata={"help": "Flash Attention 사용 여부"}
     )
@@ -229,7 +229,7 @@ def main():
         cache_dir=model_args.cache_dir,
         quantization_config=quant_config,
         torch_dtype=torch.float16 if quant_args.quantization != "none" else torch.float32,
-        use_flash_attention_2=model_args.use_flash_attention,
+        use_flash_attention_2=model_args.flash_attention,
         use_cache=False,
     )
     
@@ -337,7 +337,7 @@ def main():
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         tokenizer=tokenizer,
-        use_liger_kernel=model_args.use_liger_kernel,
+        use_liger_kernel=model_args.liger_kernel,
     )
     
     # 학습 실행
