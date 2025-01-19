@@ -147,6 +147,14 @@ def main():
     warnings.filterwarnings("ignore", message=".*cache_implementation.*")
     warnings.filterwarnings("ignore", category=UserWarning)
     
+    # 분산 학습 환경 변수 설정
+    local_rank = int(os.environ.get("LOCAL_RANK", -1))
+    if local_rank != -1:
+        os.environ["RANK"] = str(local_rank)
+        os.environ["WORLD_SIZE"] = os.environ.get("WORLD_SIZE", str(torch.cuda.device_count()))
+        os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", "localhost")
+        os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", "29500")
+    
     parser = HfArgumentParser((
         ModelArguments,
         DataTrainingArguments,
