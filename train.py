@@ -177,6 +177,12 @@ def parse_args():
         default=None,
         help="학습 데이터 수 제한 (None인 경우 전체 데이터 사용)"
     )
+    parser.add_argument(
+        "--max_eval_samples",
+        type=int,
+        default=None,
+        help="평가 데이터 수 제한 (None인 경우 전체 데이터 사용)"
+    )
     
     return parser.parse_args()
 
