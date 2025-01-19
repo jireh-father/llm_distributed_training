@@ -167,6 +167,10 @@ def main():
     
     model_args, data_args, peft_args, quant_args, eval_args, training_args = parser.parse_args_into_dataclasses()
     
+    if local_rank == -1:
+        # set training_args
+        training_args.local_rank = local_rank
+
     # 분산 학습 환경 초기화
     if training_args.local_rank != -1:
         torch.cuda.set_device(training_args.local_rank)
