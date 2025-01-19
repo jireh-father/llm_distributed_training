@@ -246,7 +246,7 @@ def main():
         cache_dir=model_args.cache_dir,
         quantization_config=quant_config,
         torch_dtype=torch.float16 if quant_args.quantization != "none" else torch.float32,
-        use_flash_attention_2=model_args.flash_attention,
+        attn_implementation="flash_attention_2" if model_args.flash_attention else "eager",
         use_cache=False,
     )
     
