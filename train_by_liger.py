@@ -217,11 +217,15 @@ def main():
         tokenized["labels"] = tokenized["input_ids"].copy()
         return tokenized
     
-    tokenized_datasets = dataset.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=dataset["train"].column_names,
-    )
+    # 토크나이징 적용
+    tokenized_datasets = {
+        split: dataset[split].map(
+            tokenize_function,
+            batched=True,
+            remove_columns=dataset[split].column_names,
+        )
+        for split in dataset.keys()
+    }
     
     # 양자화 설정
     if quant_args.quantization != "none":
