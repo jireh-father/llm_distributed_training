@@ -156,7 +156,24 @@ def main():
         TrainingArguments,
     ))
     
-    model_args, data_args, peft_args, quant_args, eval_args, training_args = parser.parse_args_into_dataclasses()
+    # TrainingArguments에 분산 학습 설정 추가
+    training_args = TrainingArguments(
+        output_dir="output",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=16,
+        learning_rate=2e-4,
+        num_train_epochs=3,
+        evaluation_strategy="steps",
+        eval_steps=100,
+        save_strategy="steps",
+        save_steps=100,
+        logging_steps=10,
+        ddp_find_unused_parameters=False,  # DDP 설정
+        ddp_backend="nccl",  # NCCL 백엔드 사용
+        local_rank=int(os.environ.get("LOCAL_RANK", -1)),  # 로컬 랭크 설정
+    )
+    
+    model_args, data_args, peft_args, quant_args, eval_args, _ = parser.parse_args_into_dataclasses()
     
     # Hugging Face 토큰 설정
     if model_args.hf_token:
