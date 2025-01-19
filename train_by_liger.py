@@ -149,6 +149,7 @@ def main():
     
     # 분산 학습 환경 변수 설정
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
+    print("local_rank : ", local_rank)
     if local_rank != -1:
         os.environ["RANK"] = str(local_rank)
         os.environ["WORLD_SIZE"] = os.environ.get("WORLD_SIZE", str(torch.cuda.device_count()))
