@@ -147,6 +147,15 @@ def main():
     warnings.filterwarnings("ignore", message=".*cache_implementation.*")
     warnings.filterwarnings("ignore", category=UserWarning)
     
+    # 분산 학습 환경 초기화
+    local_rank = int(os.environ.get("LOCAL_RANK", -1))
+    if local_rank != -1:
+        torch.cuda.set_device(local_rank)
+        torch.distributed.init_process_group(
+            backend="nccl",
+            init_method="env://"
+        )
+    
     parser = HfArgumentParser((
         ModelArguments,
         DataTrainingArguments,
