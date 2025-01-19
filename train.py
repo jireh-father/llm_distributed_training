@@ -503,7 +503,6 @@ def main():
         cache_dir=os.path.join(args.cache_dir, "model"),
         quantization_config=quant_config if args.quantization != "none" else None,
         torch_dtype=torch.float16,  # 모든 파라미터를 float16으로 통일
-        attn_implementation="flash_attention_2" if args.flash_attention else "eager",
         use_cache=None,
     )
     
