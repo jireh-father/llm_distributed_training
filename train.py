@@ -502,15 +502,17 @@ def main():
         config=config,
         cache_dir=os.path.join(args.cache_dir, "model"),
         quantization_config=quant_config if args.quantization != "none" else None,
-        torch_dtype=torch.float32 if args.quantization == "none" else torch.float16
+        torch_dtype=torch.float16,  # 모든 파라미터를 float16으로 통일
+        attn_implementation="flash_attention_2" if args.flash_attention else "eager",
+        use_cache=None,
     )
     
     if args.quantization != "none":
         model = prepare_model_for_kbit_training(model)
-    
-    # 양자화되지 않은 모델만 float32로 변환
-    if args.quantization == "none":
-        model = model.to(torch.float32)
+        # 양자화된 모델의 모든 파라미터를 float16으로 변환
+        for param in model.parameters():
+            if param.dtype == torch.uint8:
+                param.data = param.data.to(torch.float16)
     
     # Gradient Checkpointing 선택적 활성화
     if args.gradient_checkpointing:
