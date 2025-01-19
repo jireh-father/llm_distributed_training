@@ -135,6 +135,18 @@ class EvalArguments:
     )
 
 def main():
+    # 로깅 설정
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO,
+    )
+    
+    # 경고 필터 설정
+    import warnings
+    warnings.filterwarnings("ignore", message=".*cache_implementation.*")
+    warnings.filterwarnings("ignore", category=UserWarning)
+    
     parser = HfArgumentParser((
         ModelArguments,
         DataTrainingArguments,
@@ -155,13 +167,6 @@ def main():
             "--hf_token 인자로 토큰을 전달하세요."
         )
     
-    # 로깅 설정
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.StreamHandler()],
-    )
-
     # 시드 설정
     set_seed(training_args.seed)
     
@@ -247,7 +252,7 @@ def main():
         quantization_config=quant_config,
         torch_dtype=torch.float16 if quant_args.quantization != "none" else torch.float32,
         attn_implementation="flash_attention_2" if model_args.flash_attention else "eager",
-        use_cache=False,
+        use_cache=None,  # use_cache를 None으로 설정
     )
     
     if quant_args.quantization != "none":
