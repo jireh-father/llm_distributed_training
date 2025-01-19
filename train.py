@@ -503,7 +503,7 @@ def main():
         cache_dir=os.path.join(args.cache_dir, "model"),
         quantization_config=quant_config if args.quantization != "none" else None,
         torch_dtype=torch.float16,  # 모든 파라미터를 float16으로 통일
-        use_cache=None,
+        low_cpu_mem_usage=True,  # 양자화된 모델을 위해 True로 설정
     )
     
     if args.quantization != "none":
