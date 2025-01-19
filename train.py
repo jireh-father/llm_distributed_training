@@ -170,6 +170,13 @@ def parse_args():
         help="Enable gradient checkpointing"
     )
     
+    # Liger Kernel 관련 인자
+    parser.add_argument(
+        "--use_liger_kernel",
+        action="store_true",
+        help="Use Liger Kernel"
+    )
+    
     return parser.parse_args()
 
 def get_peft_config(peft_type: str, args: argparse.Namespace):
@@ -386,7 +393,8 @@ def main():
     else:
         accelerator = Accelerator(
             gradient_accumulation_steps=args.gradient_accumulation_steps,
-            mixed_precision="fp16"
+            mixed_precision="fp16",
+            use_liger_kernel=args.use_liger_kernel if args.use_liger_kernel else False
         )
     
     # 데이터셋 로드 (캐시 경로 지정)
