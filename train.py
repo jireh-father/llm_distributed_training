@@ -387,9 +387,9 @@ def main():
             param_init_fn=None,
             cpu_offload=CPUOffload(offload_params=args.offload),
             mixed_precision_policy=MixedPrecision(
-                param_dtype=torch.float32,
+                param_dtype=torch.float16,
                 reduce_dtype=torch.float16,
-                buffer_dtype=torch.float32
+                buffer_dtype=torch.float16
             ),
             use_orig_params=True,
             sharding_strategy=ShardingStrategy.FULL_SHARD
