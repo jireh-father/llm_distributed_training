@@ -51,6 +51,10 @@ class ModelArguments:
         default="./cache",
         metadata={"help": "모델 캐시 디렉토리"}
     )
+    hf_token: Optional[str] = field(
+        default=None,
+        metadata={"help": "Hugging Face 토큰 (Gemma 모델 접근용)"}
+    )
     liger_kernel: bool = field(
         default=True,
         metadata={"help": "Liger Kernel 사용 여부"}
